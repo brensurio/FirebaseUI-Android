@@ -6,9 +6,9 @@ customizable UI bindings on top of the core
 code and promote best practices (both user experience and security) for
 authentication.
 
-A simple API is provided for drop-in user authentication which handles
-the flow of signing in users with Email/Password,
-Google Sign-In, and Facebook Login. It is built on top of the
+A simple API is provided for drop-in user authentication which handles the flow
+of signing in users with email addresses and passwords, and federated identity
+providers such as Google Sign-In, and Facebook Login. It is built on top of
 [Firebase Auth](https://firebase.google.com/docs/auth).
 
 The best practices embodied in FirebaseUI aim to maximize sign-in
@@ -27,6 +27,8 @@ Equivalent FirebaseUI auth libraries are also available for
 [iOS](https://github.com/firebase/firebaseui-ios/)
 and [Web](https://github.com/firebase/firebaseui-web/).
 
+![FirebaseUI authentication demo on Android](demo.gif)
+
 ## Table of Content
 
 1. [Configuration](#configuration)
@@ -39,41 +41,54 @@ As a pre-requisite, ensure your application is configured for use with
 Firebase: see the
 [Firebase documentation](https://firebase.google.com/docs/android/setup).
 Then, add the FirebaseUI auth library dependency. If your project uses
-Gradle, add:
+Gradle, add the dependency:
 
 ```groovy
 dependencies {
-  // ...
-  compile 'com.firebaseui:firebase-ui-auth:0.6.0'
+    // ...
+    compile 'com.firebaseui:firebase-ui-auth:1.0.0'
 }
 ```
 
-If instead your project uses Maven, add:
+and add the Fabric repository
 
-```xml
-<dependency>
-  <groupId>com.firebaseui</groupId>
-  <artifactId>firebase-ui-auth</artifactId>
-  <version>0.6.0</version>
-</dependency>
+```groovy
+repositories {
+    // ...
+    maven { url 'https://maven.fabric.io/public' }
+}
 ```
 
 ### Identity provider configuration
 
-In order to use either Google or Facebook accounts with your app, ensure that
+In order to use either Google, Facebook or Twitter accounts with your app, ensure that
 these authentication methods are first configured in the Firebase console.
 
 FirebaseUI client-side configuration for Google sign-in is then provided
 automatically by the
 [google-services gradle plugin](https://developers.google.com/android/guides/google-services-plugin).
-If support for Facebook Sign-in is also required, define the
+If support for Facebook Login is also required, define the
 resource string `facebook_application_id` to match the application ID in
 the [Facebook developer dashboard](https://developers.facebook.com):
 
 ```xml
 <resources>
-  <!-- ... -->
-  <string name="facebook_application_id" translatable="false">APPID</string>
+    <!-- ... -->
+    <string name="facebook_application_id" translatable="false">APP_ID</string>
+    <!-- Facebook Application ID, prefixed by 'fb'.  Enables Chrome Custom tabs. -->
+    <string name="facebook_login_protocol_scheme" translatable="false">fbAPP_ID</string>
+</resources>
+```
+
+If support for Twitter Sign-in is also required, define the resource strings
+`twitter_consumer_key` and `twitter_consumer_secret` to match the values of your
+Twitter app as reported by the
+[Twitter application manager](https://dev.twitter.com/apps).
+
+```
+<resources>
+  <string name="twitter_consumer_key" translatable="false">YOURCONSUMERKEY</string>
+  <string name="twitter_consumer_secret" translatable="false">YOURCONSUMERSECRET</string>
 </resources>
 ```
 
@@ -86,9 +101,9 @@ whether a
 ```java
 FirebaseAuth auth = FirebaseAuth.getInstance();
 if (auth.getCurrentUser() != null) {
-  // already signed in
+    // already signed in
 } else {
-  // not signed in
+    // not signed in
 }
 ```
 
@@ -97,13 +112,14 @@ The entry point to the authentication flow is the
 If your application uses the default `FirebaseApp` instance, an AuthUI
 instance can be retrieved simply by calling `AuthUI.getInstance()`.
 If an alternative app instance is required, call
-`AuthUI.getInstance(app)` instead, passing the appropriate FirebaseApp instance.
+`AuthUI.getInstance(app)` instead, passing the appropriate `FirebaseApp`
+instance.
 
 ### Sign in
 
 If a user is not currently signed in, as can be determined by checking
-`auth.getCurrentUser() != null`, where auth is the FirebaseAuth instance
-associated with your FirebaseApp, then the sign-in process can be started by
+`auth.getCurrentUser() != null` (where `auth` is the `FirebaseAuth` instance
+associated with your `FirebaseApp`), then the sign-in process can be started by
 creating a sign-in intent using `AuthUI.SignInIntentBuilder`. A builder instance
 can be retrieved by calling `createSignInIntentBuilder()` on the retrieved
 AuthUI instance.
@@ -114,9 +130,8 @@ The builder provides the following customization options for the authentication 
 - The terms of service URL for your app can be specified, which is included as
   a link in the small-print of the account creation step for new users. If no
   terms of service URL is provided, the associated small-print is omitted.
-
 - A custom theme can be specified for the flow, which is applied to all the
-  activities in the flow for consistent customization of colors and typography.
+  activities in the flow for consistent colors and typography.
 
 #### Sign-in examples
 
@@ -137,10 +152,10 @@ You can enable sign-in providers like Google Sign-In or Facebook Log In by calli
 startActivityForResult(
     AuthUI.getInstance()
         .createSignInIntentBuilder()
-        .setProviders(
-            AuthUI.EMAIL_PROVIDER,
-            AuthUI.GOOGLE_PROVIDER,
-            AuthUI.FACEBOOK_PROVIDER)
+        .setProviders(Arrays.asList(new AuthUI.IdpConfig.Builder(AuthUI.EMAIL_PROVIDER).build(),
+                                    new AuthUI.IdpConfig.Builder(AuthUI.GOOGLE_PROVIDER).build(),
+                                    new AuthUI.IdpConfig.Builder(AuthUI.FACEBOOK_PROVIDER).build(),
+                                    new AuthUI.IdpConfig.Builder(AuthUI.TWITTER_PROVIDER).build()))
         .build(),
     RC_SIGN_IN);
 ```
@@ -160,8 +175,8 @@ startActivityForResult(
 
 By default, FirebaseUI uses [Smart Lock for Passwords](https://developers.google.com/identity/smartlock-passwords/android/)
 to store the user's credentials and automatically sign users into your app on subsequent attempts.
-Using SmartLock is recommended to provide the best user experience, but in some cases you may want
-to disable SmartLock for testing or development.  To disable SmartLock, you can use the 
+Using Smart Lock is recommended to provide the best user experience, but in some cases you may want
+to disable Smart Lock for testing or development.  To disable Smart Lock, you can use the
 `setIsSmartLockEnabled` method when building your sign-in Intent:
 
 ```java
@@ -173,8 +188,8 @@ startActivityForResult(
     RC_SIGN_IN);
 ```
 
-It is often desirable to disable SmartLock in development but enable it in production. To achieve
-this, you can use the `BuildConfig.DEBUG` flag to control SmartLock:
+It is often desirable to disable Smart Lock in development but enable it in production. To achieve
+this, you can use the `BuildConfig.DEBUG` flag to control Smart Lock:
 
 ```java
 startActivityForResult(
@@ -187,26 +202,39 @@ startActivityForResult(
 
 #### Handling the sign-in response
 
-The authentication flow provides only two response codes:
-`Activity.RESULT_OK` if a user is signed in, and `Activity.RESULT_CANCELLED` if
-sign in failed. No further information on failure is provided as it is not
+#####Response codes
+The authentication flow only provides three response codes:
+`Activity.RESULT_OK` if a user is signed in, `Activity.RESULT_CANCELLED` if
+sign in failed, and `ResultCodes.RESULT_NO_NETWORK` if sign in failed due to a lack of network connectivity.
+No further information on failure is provided as it is not
 typically useful; the only recourse for most apps if sign in fails is to ask
-the user to sign in again later, or proceed with an anonymous account if
+the user to sign in again later, or proceed with anonymous sign-in if
 supported.
 
 ```java
 protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-   super.onActivityResult(requestCode, resultCode, data);
-   if (requestCode == RC_SIGN_IN) {
-     if (resultCode == RESULT_OK) {
-       // user is signed in!
-       startActivity(new Intent(this, WelcomeBackActivity.class));
-       finish();
-     } else {
-       // user is not signed in. Maybe just wait for the user to press
-       // "sign in" again, or show a message
-     }
-   }
+    super.onActivityResult(requestCode, resultCode, data);
+    if (resultCode == RESULT_OK) {
+        // user is signed in!
+        startActivity(new Intent(this, WelcomeBackActivity.class));
+        finish();
+        return;
+    }
+
+    // Sign in canceled
+    if (resultCode == RESULT_CANCELED) {
+        showSnackbar(R.string.sign_in_cancelled);
+        return;
+    }
+
+    // No network
+    if (resultCode == ResultCodes.RESULT_NO_NETWORK) {
+        showSnackbar(R.string.no_internet_connection);
+        return;
+    }
+
+    // User is not signed in. Maybe just wait for the user to press
+    // "sign in" again, or show a message.
  }
 ```
 
@@ -214,6 +242,23 @@ Alternatively, you can register a listener for authentication state changes;
 see the
 [Firebase Auth documentation](https://firebase.google.com/docs/auth/android/manage-users#get_the_currently_signed-in_user)
 for more information.
+
+##### ID Tokens
+To retrieve the ID token that the IDP returned, you can extract an `IdpResponse` from the result
+Intent.
+
+```java
+protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    super.onActivityResult(requestCode, resultCode, data);
+    if (resultCode == RESULT_OK) {
+        IdpResponse idpResponse = IdpResponse.fromResultIntent(data);
+        startActivity(new Intent(this, WelcomeBackActivity.class)
+                .putExtra("my_token", idpResponse.getIdpToken()));
+    }
+}
+```
+
+Twitter also returns an AuthToken Secret which can be accessed with `idpResponse.getIdpSecret()`.
 
 ### Sign out
 
@@ -236,18 +281,44 @@ completed once all necessary sign-out operations are completed:
 
 ```java
 public void onClick(View v) {
-  if (v.getId() == R.id.sign_out) {
-      AuthUI.getInstance()
-          .signOut(this)
-          .addOnCompleteListener(new OnCompleteListener<Void>() {
+if (v.getId() == R.id.sign_out) {
+    AuthUI.getInstance()
+        .signOut(this)
+        .addOnCompleteListener(new OnCompleteListener<Void>() {
             public void onComplete(@NonNull Task<Void> task) {
-              // user is now signed out
-              startActivity(new Intent(MyActivity.this, SignInActivity.class));
-              finish();
+                // user is now signed out
+                startActivity(new Intent(MyActivity.this, SignInActivity.class));
+                finish();
             }
-          });
-  }
+        });
+    }
 }
+```
+
+### Deleting accounts
+
+With the integrations provided by FirebaseUI Auth, deleting a user is a multi-stage process:
+
+1. The user must be deleted from Firebase Auth.
+2. Smart Lock for Passwords must be told to delete any existing Credentials for the user, so
+   that they are not automatically prompted to sign in with a saved credential in the future.
+
+This process is encapsulated by the `AuthUI.delete()` method, which returns a `Task` representing
+the entire operation:
+
+```java
+AuthUI.getInstance()
+        .delete(this)
+        .addOnCompleteListener(new OnCompleteListener<Void>() {
+            @Override
+            public void onComplete(@NonNull Task<Void> task) {
+                if (task.isSuccessful()) {
+                    // Deletion succeeded
+                } else {
+                    // Deletion failed
+                }
+            }
+        });
 ```
 
 ### Authentication flow chart
@@ -306,46 +377,63 @@ easily overridden by name in your application. See
 [the built-in strings.xml](src/main/res/values/strings.xml) and simply
 redefine a string to change it, for example:
 
-```java
+```xml
 <resources>
-  <!-- was "Signing up..." -->
-  <string name="progress_dialog_signing_up">Creating your shiny new account...</string>
+    <!-- was "Signing up..." -->
+    <string name="progress_dialog_signing_up">Creating your shiny new account...</string>
 </resources>
 ```
 
 ### OAuth Scope Customization
 
 #### Google
-By default, FirebaseUI requests the `email` and `profile` scopes when using Google Sign In. If you
-would like to request additional scopes from the user, add a string array resource named 
-`google_permissions` to your `strings.xml` file like this:
+By default, FirebaseUI requests the `email` and `profile` scopes when using Google Sign-In. If you
+would like to request additional scopes from the user, call `setPermissions` on the
+`AuthUI.IdpConfig.Builder` when initializing FirebaseUI.
 
-```xml
-<!--
-    For a list of all scopes, see:
-    https://developers.google.com/identity/protocols/googlescopes
--->
-<string-array name="google_permissions">
-    <!-- Request permission to read the user's Google Drive files -->
-    <item>https://www.googleapis.com/auth/drive.readonly</item>
-</string-array>
+
+```java
+// For a list of all scopes, see:
+// https://developers.google.com/identity/protocols/googlescopes
+AuthUI.IdpConfig googleIdp = new AuthUI.IdpConfig.Builder(AuthUI.GOOGLE_PROVIDER)
+          .setPermissions(Arrays.asList(Scopes.GAMES))
+          .build();
+
+startActivityForResult(
+    AuthUI.getInstance()
+        .createSignInIntentBuilder()
+        .setProviders(Arrays.asList(new IdpConfig.Builder(AuthUI.EMAIL_PROVIDER).build(),
+                                    googleIdp,
+                                    new IdpConfig.Builder(AuthUI.FACEBOOK_PROVIDER).build()))
+        .build(),
+    RC_SIGN_IN);
 ```
 
 
 #### Facebook
 
 By default, FirebaseUI requests the `email` and `public_profile` permissions when initiating
-Facebook Login.  If you would like to override these scopes, a string array resource named 
-`facebook_permissions` to your `strings.xml` file like this:
+Facebook Login.  If you would like to request additional permissions from the user, call
+`setPermissions` on the `AuthUI.IdpConfig.Builder` when initializing FirebaseUI.
 
-```xml
-<!--
-    See:
-    https://developers.facebook.com/docs/facebook-login/android
-    https://developers.facebook.com/docs/facebook-login/permissions
--->
-<string-array name="facebook_permissions">
-    <!-- Request permission to know the user's birthday -->
-    <item>user_birthday</item>
-</string-array>
+```java
+// For a list of permissions see:
+// https://developers.facebook.com/docs/facebook-login/android
+// https://developers.facebook.com/docs/facebook-login/permissions
+
+AuthUI.IdpConfig facebookIdp = new AuthUI.IdpConfig.Builder(AuthUI.FACEBOOK_PROVIDER)
+          .setPermissions(Arrays.asList("user_friends"))
+          .build();
+
+startActivityForResult(
+    AuthUI.getInstance()
+        .createSignInIntentBuilder()
+        .setProviders(Arrays.asList(new AuthUI.IdpConfig.Builder(AuthUI.EMAIL_PROVIDER).build(),
+                                    facebookIdp))
+        .build(),
+    RC_SIGN_IN);
 ```
+
+#### Twitter
+
+Twitter permissions can only be configured through Twitter's developer console.
